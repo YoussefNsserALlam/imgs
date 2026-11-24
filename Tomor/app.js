@@ -1,11 +1,13 @@
-/* ================= الإعدادات — عدّلها هنا فقط ================= */
 // https://docs.google.com/spreadsheets/d/19zBeVvG_HsNVE--k_1VCXQrNsPTmdr6Vz-xgDEeFApw/edit?usp=sharing
-// docs.google.com/spreadsheets/d/هذا_الجزء/edit
+// https://docs.google.com/spreadsheets/d/1aLBbBVkL9MXDk_6rfhFnbKiq1RhhNv_8hB9qmd_ymEA/edit?usp=sharing
+/* ================= الإعدادات — عدّلها هنا فقط ================= */
 const CONFIG={
   SHEET_ID:'19zBeVvG_HsNVE--k_1VCXQrNsPTmdr6Vz-xgDEeFApw',            // معرّف ملف Google Sheet (الجزء الطويل في رابط الشيت). اتركه فارغاً لعرض منتجات تجريبية
   SHEET_NAME:'Products',  // اسم الورقة (التبويب) داخل الشيت
-  WHATSAPP:'201098027136',// رقم واتساب بالصيغة الدولية بدون + أو أصفار
-  CURRENCY:'جنيه',
+  REVIEWS_SHEET_ID:'1aLBbBVkL9MXDk_6rfhFnbKiq1RhhNv_8hB9qmd_ymEA',    // معرّف ملف شيت آراء العملاء (ملف منفصل). اتركه فارغاً لعرض أماكن تجريبية
+  REVIEWS_SHEET_NAME:'Reviews',
+  WHATSAPP:'201098027136',// رقم واتساب بالصيغة الدولية بدون + أو أصفار (مصر تبدأ بـ 20)
+  CURRENCY:'ج.م',
   STORE:'ثمار النخبة'
 };
 /* ============================================================== */
@@ -36,6 +38,23 @@ async function loadProducts(){
   .filter(p=>p.id&&p.name&&!/^(no|false|لا|0)$/i.test(p.available||''));
 }
 
+async function loadReviews(){
+ if(!CONFIG.REVIEWS_SHEET_ID)return [3,4.5,3.4,5,4,3.6].map(r=>({image:'',caption:'',ratio:r}));
+ const u=`https://docs.google.com/spreadsheets/d/${CONFIG.REVIEWS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(CONFIG.REVIEWS_SHEET_NAME)}`;
+ const res=await fetch(u);if(!res.ok)throw new Error('reviews');
+ const [h,...rows]=parseCSV(await res.text());const keys=h.map(x=>x.trim().toLowerCase());
+ return rows.map(r=>Object.fromEntries(keys.map((k,i)=>[k,(r[i]||'').trim()]))).filter(r=>r.image);
+}
+function reviewsSection(list){
+ const box=$('#reviews');if(!box||!list.length)return;
+ box.hidden=false;
+ $('#rvgrid').innerHTML=list.map(r=>r.image
+  ?`<figure class="rv"><button data-zoom="${esc(r.image)}" aria-label="تكبير الصورة"><img src="${esc(r.image)}" alt="${esc(r.caption||'رأي عميل')}" loading="lazy"></button>${r.caption?`<figcaption>${esc(r.caption)}</figcaption>`:''}</figure>`
+  :`<figure class="rv"><div class="ph" style="aspect-ratio:1/${r.ratio}"></div></figure>`).join('');
+ $('#rvgrid').onclick=e=>{const z=e.target.closest('[data-zoom]');if(!z)return;
+  const o=document.createElement('div');o.className='lb';o.innerHTML=`<img src="${esc(z.dataset.zoom)}" alt="">`;o.onclick=()=>o.remove();document.body.append(o)};
+}
+
 /* ---------- السلة ---------- */
 const Cart={
  get(){try{return JSON.parse(localStorage.getItem('nk_cart'))||[]}catch{return[]}},
@@ -45,11 +64,11 @@ const Cart={
  total(c=this.get()){return c.reduce((s,x)=>s+x.price*x.qty,0)}
 };
 function orderMsg(items,name,addr){
- let m=`السلام عليكم  \nعايز اطلب الاوردر ده من متجر *${CONFIG.STORE}*:\n\n`;
+ let m=`السلام عليكم 🌴\nأنا عايز أطلب من *${CONFIG.STORE}*:\n\n`;
  items.forEach((x,i)=>{m+=`${i+1}. ${x.name}${x.weight?` (${x.weight})`:''} × ${x.qty} = ${price(x.price*x.qty)}\n`});
  m+=`\n*الإجمالي:* ${price(Cart.total(items))}\n`;
- if(name)m+=`\n*الاسم:* ${name}`;if(addr)m+=`\n*العنوان:* ${addr}`;
- return m+`\n\nبانتظار تأكيد الطلب، شكراً لكم.`;
+ if(name)m+=`\n*اسمي:* ${name}`;if(addr)m+=`\n*عنواني:* ${addr}`;
+ return m+`\n\nياريت تأكدلي الطلب وتقوللي ميعاد التوصيل. تسلموا 🙏`;
 }
 const waLink=m=>`https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(m)}`;
 function toggleCart(o){document.body.classList.toggle('cartopen',o)}
@@ -126,4 +145,5 @@ function productPage(){
  layout();
  try{window.PRODUCTS=await loadProducts()}catch{window.PRODUCTS=[];const m=$('#grid')||$('#pd');if(m)m.innerHTML='<p class="msg">تعذّر تحميل المنتجات. تأكد من مشاركة الشيت للعرض العام وصحة SHEET_ID.</p>';return}
  document.body.dataset.page=='product'?productPage():homePage();
+ if(document.body.dataset.page=='home')loadReviews().then(reviewsSection).catch(()=>{});
 })();
