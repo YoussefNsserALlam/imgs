@@ -1,12 +1,10 @@
-// https://docs.google.com/spreadsheets/d/19zBeVvG_HsNVE--k_1VCXQrNsPTmdr6Vz-xgDEeFApw/edit?usp=sharing
-// https://docs.google.com/spreadsheets/d/1aLBbBVkL9MXDk_6rfhFnbKiq1RhhNv_8hB9qmd_ymEA/edit?usp=sharing
 /* ================= الإعدادات — عدّلها هنا فقط ================= */
 const CONFIG={
-  SHEET_ID:'19zBeVvG_HsNVE--k_1VCXQrNsPTmdr6Vz-xgDEeFApw',            // معرّف ملف Google Sheet (الجزء الطويل في رابط الشيت). اتركه فارغاً لعرض منتجات تجريبية
+  SHEET_ID:'',            // معرّف ملف Google Sheet (الجزء الطويل في رابط الشيت). اتركه فارغاً لعرض منتجات تجريبية
   SHEET_NAME:'Products',  // اسم الورقة (التبويب) داخل الشيت
-  REVIEWS_SHEET_ID:'1aLBbBVkL9MXDk_6rfhFnbKiq1RhhNv_8hB9qmd_ymEA',    // معرّف ملف شيت آراء العملاء (ملف منفصل). اتركه فارغاً لعرض أماكن تجريبية
+  REVIEWS_SHEET_ID:'',    // معرّف ملف شيت آراء العملاء (ملف منفصل). اتركه فارغاً لعرض أماكن تجريبية
   REVIEWS_SHEET_NAME:'Reviews',
-  WHATSAPP:'201098027136',// رقم واتساب بالصيغة الدولية بدون + أو أصفار (مصر تبدأ بـ 20)
+  WHATSAPP:'201000000000',// رقم واتساب بالصيغة الدولية بدون + أو أصفار (مصر تبدأ بـ 20)
   CURRENCY:'ج.م',
   STORE:'ثمار النخبة'
 };
@@ -63,11 +61,12 @@ const Cart={
  change(id,d){const c=this.get(),i=c.find(x=>x.id==id);if(!i)return;i.qty+=d;this.set(c.filter(x=>x.qty>0))},
  total(c=this.get()){return c.reduce((s,x)=>s+x.price*x.qty,0)}
 };
-function orderMsg(items,name,addr){
+function orderMsg(items,name,addr,phone,phone2){
  let m=`السلام عليكم 🌴\nأنا عايز أطلب من *${CONFIG.STORE}*:\n\n`;
  items.forEach((x,i)=>{m+=`${i+1}. ${x.name}${x.weight?` (${x.weight})`:''} × ${x.qty} = ${price(x.price*x.qty)}\n`});
  m+=`\n*الإجمالي:* ${price(Cart.total(items))}\n`;
  if(name)m+=`\n*اسمي:* ${name}`;if(addr)m+=`\n*عنواني:* ${addr}`;
+ if(phone)m+=`\n*رقم موبايلي:* ${phone}`;if(phone2)m+=`\n*رقم تاني للتوصيل:* ${phone2}`;
  return m+`\n\nياريت تأكدلي الطلب وتقوللي ميعاد التوصيل. تسلموا 🙏`;
 }
 const waLink=m=>`https://wa.me/${CONFIG.WHATSAPP}?text=${encodeURIComponent(m)}`;
@@ -92,10 +91,14 @@ function layout(){
  <div class="items" id="items"></div>
  <div class="df" id="send"><div class="tot"><span>الإجمالي</span><span id="tot"></span></div>
  <input id="cname" placeholder="اسمك" autocomplete="name"><textarea id="caddr" rows="2" placeholder="المدينة والعنوان"></textarea>
+ <input id="cphone" type="tel" inputmode="tel" placeholder="رقم الهاتف" autocomplete="tel" required>
+ <input id="cphone2" type="tel" inputmode="tel" placeholder="رقم هاتف إضافي (لسرعة التوصيل)">
  <a class="btn wa" id="wabtn" href="#" target="_blank" rel="noopener">إتمام الطلب عبر واتساب</a></div></aside>`);
  $('#opencart').onclick=()=>toggleCart(true);$('#closecart').onclick=$('#shade').onclick=()=>toggleCart(false);
  $('#wabtn').onclick=e=>{const c=Cart.get();if(!c.length){e.preventDefault();return}
-  e.currentTarget.href=waLink(orderMsg(c,$('#cname').value.trim(),$('#caddr').value.trim()))};
+  const ph=$('#cphone').value.trim();
+  if(!/^[+\d\s-]{8,}$/.test(ph)){e.preventDefault();$('#cphone').focus();toast('من فضلك اكتب رقم الهاتف');return}
+  e.currentTarget.href=waLink(orderMsg(c,$('#cname').value.trim(),$('#caddr').value.trim(),ph,$('#cphone2').value.trim()))};
  document.addEventListener('click',e=>{
   const q=e.target.closest('[data-q]');if(q)Cart.change(q.dataset.q,+q.dataset.d);
   const a=e.target.closest('[data-add]');if(a){const p=window.PRODUCTS.find(x=>x.id==a.dataset.add);if(p)Cart.add(p)}});
