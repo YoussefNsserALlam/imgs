@@ -74,6 +74,17 @@ body.cartopen .drawer{transform:none}body.cartopen .shade{opacity:1;pointer-even
 .df input,.df textarea{padding:10px 14px;border:1.5px solid var(--bd);border-radius:12px;font:inherit;width:100%}
 .tot{display:flex;justify-content:space-between;font-weight:800;font-size:1.15rem;color:var(--g)}
 .df .btn{text-align:center;width:100%}
+#reviews{padding-bottom:50px}
+.rvgrid{columns:2;column-gap:14px}
+.rv{break-inside:avoid;margin:0 0 14px;border:1px solid var(--bd);border-radius:16px;overflow:hidden;background:#fff}
+.rv button{display:block;width:100%;padding:0;background:none}
+.rv img{display:block;width:100%;height:auto}
+.rv .ph{aspect-ratio:auto}
+.rv figcaption{padding:8px 12px;font-size:.9rem;color:var(--mut);text-align:center}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:70;display:grid;place-items:center;padding:20px;cursor:zoom-out}
+.lb img{max-width:100%;max-height:100%;border-radius:12px}
+@media(min-width:700px){.rvgrid{columns:3}}
+@media(min-width:1000px){.rvgrid{columns:4}}
 footer{background:var(--g);color:#dff0e4;padding:30px 0;text-align:center}
 footer b{color:#fff;font-size:1.2rem}
 .toast{position:fixed;bottom:22px;right:50%;transform:translateX(50%);background:var(--ink);color:#fff;padding:10px 22px;border-radius:30px;z-index:60}
