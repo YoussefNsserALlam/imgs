@@ -1,10 +1,10 @@
 /* ================= الإعدادات — عدّلها هنا فقط ================= */
 const CONFIG={
-  SHEET_ID:'',            // معرّف ملف Google Sheet (الجزء الطويل في رابط الشيت). اتركه فارغاً لعرض منتجات تجريبية
+  SHEET_ID:'19zBeVvG_HsNVE--k_1VCXQrNsPTmdr6Vz-xgDEeFApw',            // معرّف ملف Google Sheet (الجزء الطويل في رابط الشيت). اتركه فارغاً لعرض منتجات تجريبية
   SHEET_NAME:'Products',  // اسم الورقة (التبويب) داخل الشيت
   REVIEWS_SHEET_ID:'',    // معرّف ملف شيت آراء العملاء (ملف منفصل). اتركه فارغاً لعرض أماكن تجريبية
-  REVIEWS_SHEET_NAME:'Reviews',
-  WHATSAPP:'201000000000',// رقم واتساب بالصيغة الدولية بدون + أو أصفار (مصر تبدأ بـ 20)
+  REVIEWS_SHEET_ID:'1aLBbBVkL9MXDk_6rfhFnbKiq1RhhNv_8hB9qmd_ymEA',
+ WHATSAPP:'201098027136',// رقم واتساب بالصيغة الدولية بدون + أو أصفار (مصر تبدأ بـ 20)
   CURRENCY:'ج.م',
   STORE:'ثمار النخبة'
 };
@@ -17,6 +17,7 @@ const DEMO=[
 {id:'5',name:'تمر صقعي',price:'95',old_price:'',image:'',images:'',category:'صقعي',weight:'1 كجم',description:'تمر صقعي جاف قوامه متماسك ومناسب للتخزين والضيافة.',available:'yes',badge:''},
 {id:'6',name:'علبة هدايا تمر ملكي',price:'220',old_price:'250',image:'',images:'',category:'هدايا',weight:'2 كجم',description:'علبة أنيقة تضم تشكيلة من أفخر التمور، مناسبة للهدايا والمناسبات.',available:'yes',badge:'هدية'}];
 
+DEMO[0].offers='2:5%|3:10%';DEMO[1].offers='2:4%|3:8%|5:12%';DEMO[2].offers='2:5%|4:10%';DEMO[3].offers='2:3%|3:6%';DEMO[5].offers='2:5%|3:10%';
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>Number(n||0).toLocaleString('en-US');
@@ -53,17 +54,30 @@ function reviewsSection(list){
   const o=document.createElement('div');o.className='lb';o.innerHTML=`<img src="${esc(z.dataset.zoom)}" alt="">`;o.onclick=()=>o.remove();document.body.append(o)};
 }
 
+/* ---------- العروض حسب الكمية ---------- */
+// صيغة عمود offers في الشيت: 2:5%|3:10%  (خصم نسبة)  أو  2:160|3:225  (السعر الكلي للكمية)
+function parseOffers(p){const base=+p.price||0,ar='٠١٢٣٤٥٦٧٨٩';
+ return String(p.offers||'').replace(/[٠-٩]/g,d=>ar.indexOf(d)).replace(/٪/g,'%').split(/[|\n،;]+/)
+  .map(x=>x.trim().match(/^(\d+)\s*[:=]\s*([\d.]+)\s*(%?)$/)).filter(Boolean)
+  .map(m=>{const q=+m[1],v=+m[2];return{q,u:Math.round((m[3]?base*(1-v/100):v/q)*100)/100}})
+  .filter(t=>t.q>1&&t.u>0&&t.u<base).sort((x,y)=>x.q-y.q)}
+function unitPrice(x){let u=x.price;for(const t of x.tiers||[])if(x.qty>=t.q)u=t.u;return u}
+const lineTotal=x=>Math.round(unitPrice(x)*x.qty);
+function cartSub(x){const u=unitPrice(x),n=(x.tiers||[]).find(t=>t.q>x.qty);
+ return `${price(u)}${u<x.price?` <s>${price(x.price)}</s>`:''}${x.weight?' · '+esc(x.weight):''}${n?`<br><span class="up">أضف ${n.q-x.qty} أخرى ليصبح سعر الواحدة ${price(n.u)}</span>`:''}`}
+
 /* ---------- السلة ---------- */
 const Cart={
- get(){try{return JSON.parse(localStorage.getItem('nk_cart'))||[]}catch{return[]}},
- set(c){try{localStorage.setItem('nk_cart',JSON.stringify(c))}catch{}Cart._mem=c;renderCart()},
- add(p,q=1){const c=this.get(),i=c.find(x=>x.id==p.id);i?i.qty+=q:c.push({id:p.id,name:p.name,price:+p.price||0,weight:p.weight||'',qty:q});this.set(c);toggleCart(true)},
+ get(){try{const v=JSON.parse(localStorage.getItem('nk_cart'));if(v)return v}catch{}return this._m||[]},
+ set(c){this._m=c;try{localStorage.setItem('nk_cart',JSON.stringify(c))}catch{}renderCart()},
+ add(p,q=1){const c=this.get(),i=c.find(x=>x.id==p.id),t=parseOffers(p);
+  i?(i.qty+=q,i.tiers=t,i.price=+p.price||0):c.push({id:p.id,name:p.name,price:+p.price||0,weight:p.weight||'',qty:q,tiers:t});this.set(c);toggleCart(true)},
  change(id,d){const c=this.get(),i=c.find(x=>x.id==id);if(!i)return;i.qty+=d;this.set(c.filter(x=>x.qty>0))},
- total(c=this.get()){return c.reduce((s,x)=>s+x.price*x.qty,0)}
+ total(c=this.get()){return c.reduce((s,x)=>s+lineTotal(x),0)}
 };
 function orderMsg(items,name,addr,phone,phone2){
  let m=`السلام عليكم 🌴\nأنا عايز أطلب من *${CONFIG.STORE}*:\n\n`;
- items.forEach((x,i)=>{m+=`${i+1}. ${x.name}${x.weight?` (${x.weight})`:''} × ${x.qty} = ${price(x.price*x.qty)}\n`});
+ items.forEach((x,i)=>{m+=`${i+1}. ${x.name}${x.weight?` (${x.weight})`:''} × ${x.qty} = ${price(lineTotal(x))}${unitPrice(x)<x.price?' (بسعر العرض)':''}\n`});
  m+=`\n*الإجمالي:* ${price(Cart.total(items))}\n`;
  if(name)m+=`\n*اسمي:* ${name}`;if(addr)m+=`\n*عنواني:* ${addr}`;
  if(phone)m+=`\n*رقم موبايلي:* ${phone}`;if(phone2)m+=`\n*رقم تاني للتوصيل:* ${phone2}`;
@@ -75,7 +89,7 @@ function toast(t){const e=document.createElement('div');e.className='toast';e.te
 
 function renderCart(){
  const c=Cart.get();$('#cc').textContent=c.reduce((s,x)=>s+x.qty,0);
- $('#items').innerHTML=c.length?c.map(x=>`<div class="it"><div><p>${esc(x.name)}</p><small>${price(x.price)} ${x.weight?'· '+esc(x.weight):''}</small></div>
+ $('#items').innerHTML=c.length?c.map(x=>`<div class="it"><div><p>${esc(x.name)}</p><small>${cartSub(x)}</small></div>
  <div class="qty"><button data-q="${esc(x.id)}" data-d="1" aria-label="زيادة">+</button><span>${x.qty}</span><button data-q="${esc(x.id)}" data-d="-1" aria-label="إنقاص">−</button></div></div>`).join(''):'<p class="msg">سلتك فارغة، أضف بعض التمور الشهية.</p>';
  $('#tot').textContent=price(Cart.total(c));$('#send').style.display=c.length?'':'none';
 }
@@ -109,6 +123,7 @@ function layout(){
 const img=(src,alt)=>src?`<img src="${esc(src)}" alt="${esc(alt)}" loading="lazy" onerror="this.style.display='none'">`:'';
 function card(p){return `<article class="card"><a class="ph" href="product.html?id=${encodeURIComponent(p.id)}">${img(p.image,p.name)}${p.badge?`<span class="badge">${esc(p.badge)}</span>`:''}</a>
  <div class="cb"><small>${esc(p.category)}</small><a href="product.html?id=${encodeURIComponent(p.id)}"><h3>${esc(p.name)}</h3></a>
+ ${parseOffers(p).length?'<span class="of">خصم عند شراء أكثر من عبوة</span>':''}
  <div class="pr"><b>${price(p.price)}</b>${p.old_price?`<s>${price(p.old_price)}</s>`:''}</div></div>
  <button class="add" data-add="${esc(p.id)}">أضف إلى السلة</button></article>`}
 
@@ -126,22 +141,30 @@ function productPage(){
  const id=new URLSearchParams(location.search).get('id'),p=window.PRODUCTS.find(x=>x.id==id),box=$('#pd');
  if(!p){box.innerHTML='<p class="msg">المنتج غير موجود. <a class="btn" href="index.html">العودة للمتجر</a></p>';return}
  document.title=`${p.name} | ${CONFIG.STORE}`;
- const pics=[p.image,...(p.images||'').split(/[,\n|]/).map(s=>s.trim())].filter(Boolean);let qty=1;
+ const pics=[p.image,...(p.images||'').split(/[,\n|]/).map(s=>s.trim())].filter(Boolean);
+ const base=+p.price||0,tiers=parseOffers(p),opts=[{q:1,u:base},...tiers];let qty=1;
+ const it=()=>({name:p.name,weight:p.weight,price:base,tiers,qty});
+ const word=n=>n==1?'عبوة واحدة':n==2?'عبوتين':n<=10?`${n} عبوات`:`${n} عبوة`;
  box.innerHTML=`<div><div class="ph main" id="main">${img(pics[0],p.name)}</div>
  ${pics.length>1?`<div class="thumbs">${pics.map((s,i)=>`<button class="${i?'':'on'}" data-i="${i}" aria-label="صورة ${i+1}"><img src="${esc(s)}" alt=""></button>`).join('')}</div>`:''}</div>
  <div><small style="color:var(--g2);font-weight:700">${esc(p.category)}</small><h1>${esc(p.name)}</h1>
- <div class="pr"><b>${price(p.price)}</b>${p.old_price?`<s>${price(p.old_price)}</s>`:''}</div>
  <div class="meta">${p.weight?`<span>الوزن: ${esc(p.weight)}</span>`:''}${p.badge?`<span>${esc(p.badge)}</span>`:''}</div>
+ ${tiers.length?`<p class="oh">اختر الكمية ووفّر أكثر</p><div class="tiers">${opts.map(o=>`<button class="tier" data-t="${o.q}"><b>${word(o.q)}</b><span>${price(Math.round(o.u*o.q))}</span>${o.q>1?`<em>وفّر ${price(Math.round((base-o.u)*o.q))}</em>`:''}</button>`).join('')}</div>`:''}
+ <div class="pr"><b id="tp"></b><s id="to"></s></div>
  <p class="desc">${esc(p.description)}</p>
  <div class="buy"><div class="qty"><button id="plus" aria-label="زيادة">+</button><span id="q">1</span><button id="minus" aria-label="إنقاص">−</button></div>
- <button class="btn out" id="addc">أضف إلى السلة</button><a class="btn wa" id="now" href="#" target="_blank" rel="noopener">اطلب الآن عبر واتساب</a></div></div>`;
- const set=n=>{qty=Math.max(1,n);$('#q').textContent=qty};
+ <button class="btn" id="addc">أضف للسلة</button><a class="btn wa" id="now" href="#" target="_blank" rel="noopener">اطلب على طول</a></div></div>`;
+ const draw=()=>{const t=lineTotal(it()),full=Math.round((+p.old_price||base)*qty),a=Math.max(...opts.filter(o=>o.q<=qty).map(o=>o.q));
+  $('#q').textContent=qty;$('#tp').textContent=price(t);$('#to').textContent=full>t?price(full):'';
+  box.querySelectorAll('.tier').forEach(b=>b.classList.toggle('on',+b.dataset.t==a))};
+ const set=n=>{qty=Math.max(1,n);draw()};
  $('#plus').onclick=()=>set(qty+1);$('#minus').onclick=()=>set(qty-1);
+ box.querySelectorAll('.tier').forEach(b=>b.onclick=()=>set(+b.dataset.t));
  $('#addc').onclick=()=>Cart.add(p,qty);
- $('#now').onclick=e=>{e.currentTarget.href=waLink(orderMsg([{name:p.name,weight:p.weight,price:+p.price||0,qty}]))};
+ $('#now').onclick=e=>{e.currentTarget.href=waLink(orderMsg([it()]))};
  box.querySelectorAll('.thumbs button').forEach(b=>b.onclick=()=>{$('#main').innerHTML=img(pics[b.dataset.i],p.name);box.querySelectorAll('.thumbs button').forEach(x=>x.classList.toggle('on',x==b))});
- const rel=window.PRODUCTS.filter(x=>x.id!=p.id&&(x.category==p.category||true)).slice(0,4);
- $('#rel').innerHTML=rel.map(card).join('');
+ $('#rel').innerHTML=window.PRODUCTS.filter(x=>x.id!=p.id).slice(0,4).map(card).join('');
+ draw();
 }
 
 (async()=>{
